@@ -6,7 +6,11 @@ import org.example.model.Board
 import org.example.model.Cell
 import org.example.utils.*
 
-
+/**
+ * It is the essence of the Tetris game. To start the game, use the [start] method.
+ *
+ * @param boardSize indicating the size of the game board.
+ */
 class Tetris(val boardSize: IntSize = TetrisTokens.DEFAULT_BOARD_SIZE) {
 
     /**
@@ -21,13 +25,24 @@ class Tetris(val boardSize: IntSize = TetrisTokens.DEFAULT_BOARD_SIZE) {
             field = value
         }
 
+    /**
+     * The game board without taking into account the currently moving block.
+     */
     private var board = Board(size = boardSize)
         set(value) {
             boardMergedWithBlock =
                 if (currentBlock.isPlaced()) value.mergeWithBlock(currentBlock) else value
             field = value
         }
+
+    /**
+     * A reflection of the current state of the game board, taking into account the currently moving block.
+     */
     private var boardMergedWithBlock = board
+        set(value) {
+            onBoardChangedListener?.let { it() }
+            field = value
+        }
 
     /**
      * The current block, which falls continuously on the game board and is controlled by the player.
@@ -55,6 +70,8 @@ class Tetris(val boardSize: IntSize = TetrisTokens.DEFAULT_BOARD_SIZE) {
 
     private var onFrameChangedListener: (() -> Unit)? = null
     private var onBoardOverflowListener: (() -> Unit)? = null
+    private var onBoardChangedListener: (() -> Unit)? = null
+    private var onBlockStoppedListener: (() -> Unit)? = null
 
     /**
      * Move the current block down 1 cell if possible.
@@ -95,7 +112,12 @@ class Tetris(val boardSize: IntSize = TetrisTokens.DEFAULT_BOARD_SIZE) {
                 val x = (boardSize.width / 2) - (currentBlock.blueprint.size.width / 2) - 1
                 val initialCoordinates = Coordinates(x = x, y = 0)
                 if (currentBlock.canBePlacedAt(initialCoordinates, board)) {
-                    currentBlock.place(initialCoordinates)
+                    currentBlock.apply {
+                        place(initialCoordinates)
+                        setOnBlockMovedListener {
+                            boardMergedWithBlock = board.mergeWithBlock(block = this)
+                        }
+                    }
                 } else {
                     // Invoke the user's event if a new block cannot be placed.
                     onBoardOverflowListener?.let { it() }
@@ -109,6 +131,7 @@ class Tetris(val boardSize: IntSize = TetrisTokens.DEFAULT_BOARD_SIZE) {
             // Fix the block in place if it can no longer move.
             val canBlockBeMoved = currentBlock.canBeMovedDownOn(board)
             if (!canBlockBeMoved && currentBlock.isPlaced()) {
+                onBlockStoppedListener?.let { it() }
                 board = board.mergeWithBlock(currentBlock)
                 currentBlock = nextBlock
                 nextBlock = Block.getAll().random()
@@ -154,6 +177,15 @@ class Tetris(val boardSize: IntSize = TetrisTokens.DEFAULT_BOARD_SIZE) {
      *
      * @param listener that will be triggered every time an event occurs.
      */
+    @Deprecated(
+        message = "The [setOnFrameChangedListener] method has been deprecated because it is not well suited to " +
+                "respond to changes in the state of the game board. It is triggered only when the game frames change " +
+                "static, and shifting or rotating the current piece with methods such as [tryMoveBlockDown], " +
+                "[tryMoveBlockLeft] goes unnoticed. Use the [setOnBoardChangedListener] method instead. This method " +
+                "is also poorly suited for calculating the player's rating and/or changing the speed of the blocks, " +
+                "because in the original version, the recalculation took place after the block stopped moving " +
+                "completely. Use the [setOnBlockStoppedListener] method instead.",
+    )
     fun setOnFrameChangedListener(listener: () -> Unit) {
         onFrameChangedListener = listener
     }
@@ -166,5 +198,24 @@ class Tetris(val boardSize: IntSize = TetrisTokens.DEFAULT_BOARD_SIZE) {
      */
     fun setOnBoardOverflowListener(listener: () -> Unit) {
         onBoardOverflowListener = listener
+    }
+
+    /**
+     * Set up a listener that triggers whenever the state of the game board changes.
+     *
+     * @param listener that will be triggered every time an event occurs.
+     */
+    fun setOnBoardChangedListener(listener: () -> Unit) {
+        onBoardChangedListener = listener
+    }
+
+    /**
+     * Set up a listener that is triggered whenever the current block cannot continue downward
+     * due to the boundaries of the game board or due to the obstruction of other blocks.
+     *
+     * @param listener that will be triggered every time an event occurs.
+     */
+    fun setOnBlockStoppedListener(listener: () -> Unit) {
+        onBlockStoppedListener = listener
     }
 }

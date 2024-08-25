@@ -8,6 +8,8 @@ import org.example.model.blocks.LBlock
 import org.example.model.blocks.SBlock
 import org.example.model.blocks.ZBlock
 import org.example.utils.Coordinates
+import org.example.utils.isNotPlaced
+import org.example.utils.isPlaced
 
 /**
  * Represents a block that is still moving on the game board.
@@ -18,13 +20,20 @@ abstract class Block {
      * Coordinates of block's top left corner in cells relative to the game board.
      * Can be null if it doesn't exist on the board.
      */
-    abstract val coordinates: Coordinates?
+    internal var coordinates: Coordinates? = null
+        set(value) {
+            if (value == coordinates) return
+            if (this.isPlaced() && value != null) onBlockMovedListener?.let { it() }
+            field = value
+        }
 
     /**
      * The board that represent block's shape.
      * It contains width and height of the block and a list of its cells.
      */
-    abstract val blueprint: Board
+    internal abstract val blueprint: Board
+
+    private var onBlockMovedListener: (() -> Unit)? = null
 
     /**
      * Rotate the shape to the right by 90 degrees.
@@ -41,24 +50,47 @@ abstract class Block {
     /**
      * Move the block down by one cell.
      */
-    internal abstract fun moveDown()
+    internal fun moveDown() {
+        coordinates?.let {
+            coordinates = it.copy(y = it.y + 1)
+        }
+    }
 
     /**
      * Move the block to the right by one cell.
      */
-    internal abstract fun moveRight()
+    internal fun moveRight() {
+        coordinates?.let {
+            coordinates = it.copy(x = it.x + 1)
+        }
+    }
 
     /**
      * Move the block to the left by one cell.
      */
-    internal abstract fun moveLeft()
+    internal fun moveLeft() {
+        coordinates?.let {
+            coordinates = it.copy(x = it.x - 1)
+        }
+    }
+
+    /**
+     * Set a listener that will be triggered whenever the block is moved relative to the board.
+     *
+     * @param listener that will be triggered every time an event occurs.
+     */
+    internal fun setOnBlockMovedListener(listener: () -> Unit) {
+        onBlockMovedListener = listener
+    }
 
     /**
      * Place a block on the game board.
      *
      * @param initialCoordinates at which the block should be spawned.
      */
-    internal abstract fun place(initialCoordinates: Coordinates)
+    internal fun place(initialCoordinates: Coordinates) {
+        coordinates = initialCoordinates
+    }
 
     companion object {
         /**

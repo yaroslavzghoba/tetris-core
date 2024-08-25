@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.yaroslavzghoba.tetris-core"
-version = "1.0.0"
+version = "1.0.1"
 
 repositories {
     mavenCentral()
@@ -30,7 +30,7 @@ afterEvaluate {
                 from(components["java"])
                 groupId = "com.github.yaroslavzghoba"
                 artifactId = "tetris-core"
-                version = "1.0.0"
+                version = "1.0.1"
             }
         }
     }
